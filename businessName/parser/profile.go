@@ -2,19 +2,21 @@ package parser
 
 import (
 	"crawler/engine"
-	"fmt"
 	"regexp"
 )
 
-const profileRe = `<div data-v-8b1eac0c="" class="m-btn purple">([^<]+)</div>`
+const profileRe = `<td><span class="label">([^<]+)</span>([^<]+)</td>`
 
-func ParseProfile(contents []byte) engine.ParseResult {
-	fmt.Println("test!")
+// const profileRe = `<div data-v-8b1eac0c="" class="m-btn purple">([^<]+)</div>`
+
+func ParseProfile(contents []byte, name string) engine.ParseResult {
 	re := regexp.MustCompile(profileRe)
 	matches := re.FindAllSubmatch(contents, -1)
 	result := engine.ParseResult{}
+	item := []string{"Profile:", name}
 	for _, m := range matches {
-		result.Items = append(result.Items, "Profile "+string(m[1]))
+		item = append(item, string(m[1])+string(m[2]))
 	}
+	result.Items = append(result.Items, item)
 	return result
 }
