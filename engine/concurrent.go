@@ -3,8 +3,13 @@ package engine
 import "log"
 
 type Scheduler interface {
+	ReadyNotifier
 	Submit(Request)
-	ConfigureMasterWoekerChan(chan Request)
+	WorkerChan() chan Request
+	Run()
+}
+type ReadyNotifier interface {
+	WorkerReady(chan Request)
 }
 
 type ConcurrentEngine struct {
@@ -13,12 +18,12 @@ type ConcurrentEngine struct {
 }
 
 func (e *ConcurrentEngine) Run(seeds ...Request) {
-	in := make(chan Request)
 	out := make(chan ParseResult)
-	e.Scheduler.ConfigureMasterWoekerChan(in)
+	//main.go 里queued实例化了一个接口类型，所以这个Run是queued的
+	e.Scheduler.Run()
 	//创建一定数量的worker协程
 	for i := 0; i < e.WorkerCount; i++ {
-		createWorker(in, out)
+		createWorker(e.Scheduler.WorkerChan(), out, e.Scheduler)
 	}
 
 	// 分配任务
@@ -41,16 +46,19 @@ func (e *ConcurrentEngine) Run(seeds ...Request) {
 	}
 }
 
-func createWorker(in chan Request, out chan ParseResult) {
+func createWorker(in chan Request, out chan ParseResult, ready ReadyNotifier) {
 	go func() {
 		for {
+			//创建好worker之后，把对应的chan加入队列
+			ready.WorkerReady(in)
+			//接收到request
 			request := <-in
+			//开始工作
 			result, err := worker(request)
 			if err != nil {
 				continue
 			}
 			out <- result
-
 		}
 	}()
 }
